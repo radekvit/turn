@@ -1,10 +1,8 @@
-mod finite_automata;
+//mod finite_automata;
 mod lexer;
 pub mod matchers;
 
 pub use lexer::*;
-
-use proc_macro::TokenStream;
 
 #[cfg(test)]
 mod tests {
