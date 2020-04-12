@@ -1,12 +1,12 @@
-# FORLA
+# turn
 Parsing and translation framework for rust.
 
 ## Goals
-* Procedural macro-based lexers (forlex)
+* Procedural macro-based lexers (turn_lexer_derive)
 * Procedural macro-based grammars
 * ielr parsing
 
-### Forlex
+### turn_lexer_derive
 * minimal DFA implementation
 * Python-based regex syntax + unicode categories
 * custom symbol skipping
