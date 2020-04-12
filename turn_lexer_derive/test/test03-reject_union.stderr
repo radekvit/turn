@@ -1,0 +1,5 @@
+error: #[derive(Lexer)] is only valid for enums.
+ --> $DIR/test03-reject_union.rs:5:7
+  |
+5 | union Foo {
+  |       ^^^

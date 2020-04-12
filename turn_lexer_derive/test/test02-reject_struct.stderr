@@ -1,0 +1,5 @@
+error: #[derive(Lexer)] is only valid for enums.
+ --> $DIR/test02-reject_struct.rs:5:8
+  |
+5 | struct Foo {
+  |        ^^^

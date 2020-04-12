@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "turn_lexer",
+    "turn_lexer_derive",
+]
