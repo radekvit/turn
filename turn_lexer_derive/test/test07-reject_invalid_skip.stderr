@@ -4,13 +4,13 @@ error: Attribute skip must be a string or char literal.
 4 | #[skip = 420]
   |   ^^^^
 
-error: The skip regex must be defined as #[skip = "..."]
+error: The skip regex must be defined as #[skip = ...]
   --> $DIR/test07-reject_invalid_skip.rs:13:3
    |
 13 | #[skip ("420", "b")]
    |   ^^^^
 
-error: The skip regex must be defined as #[skip = "..."]
+error: The skip regex must be defined as #[skip = ...]
   --> $DIR/test07-reject_invalid_skip.rs:22:3
    |
 22 | #[skip]

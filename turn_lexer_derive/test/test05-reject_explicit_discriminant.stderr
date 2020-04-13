@@ -1,4 +1,4 @@
-error: Enum item Two must not define an explicit discriminant.
+error: Lexer enum variants must not define an explicit discriminant.
  --> $DIR/test05-reject_explicit_discriminant.rs:9:5
   |
 9 |     Two = 5,

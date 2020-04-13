@@ -1,10 +1,10 @@
-error: #[token = "..."] not allowed at enum scope.
+error: #[token = ...] is not allowed at enum scope.
  --> $DIR/test06-reject_global_attrs.rs:5:3
   |
 5 | #[token = "one"]
   |   ^^^^^
 
-error: #[regex = "..."] not allowed at enum scope.
+error: #[regex = ...] is not allowed at enum scope.
   --> $DIR/test06-reject_global_attrs.rs:15:3
    |
 15 | #[regex = "[tT]wo."]

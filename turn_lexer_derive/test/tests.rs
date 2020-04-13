@@ -8,4 +8,7 @@ fn tests() {
     t.compile_fail("test/test05-reject_explicit_discriminant.rs");
     t.compile_fail("test/test06-reject_global_attrs.rs");
     t.compile_fail("test/test07-reject_invalid_skip.rs");
+    t.compile_fail("test/test08-reject_multiple_skip.rs");
+    t.compile_fail("test/test09-reject_missing_regex.rs");
+    t.compile_fail("test/test10-reject_invalid_regex.rs");
 }

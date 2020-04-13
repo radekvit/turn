@@ -1,10 +1,10 @@
-error: Enum item One must not contain data fields.
+error: Lexer enum variants must be units (try "One,").
  --> $DIR/test04-reject_data_enum.rs:7:5
   |
 7 |     One(i32),
   |     ^^^
 
-error: Enum item Two must not contain data fields.
+error: Lexer enum variants must be units (try "Two,").
   --> $DIR/test04-reject_data_enum.rs:18:5
    |
 18 |     Two{two: bool},

@@ -1,0 +1,5 @@
+error: Multiple definitions of #[skip = ...].
+ --> $DIR/test08-reject_multiple_skip.rs:5:3
+  |
+5 | #[skip = "421"]
+  |   ^^^^
