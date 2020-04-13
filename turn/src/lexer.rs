@@ -103,15 +103,3 @@ pub struct Token<'a, 'b, Symbol> {
     /// The location of this token.
     pub location: Location<'b>,
 }
-
-/// A trait representing the ability to parse input and output tokens
-/// of a specific terminal type.
-///
-/// To easily implement the Lexer trait, you can also use `#[derive(Lexer)]` on an `enum`.
-pub trait Lexer<'a, 'b, Terminal> {
-    type InputLexer: Iterator<Item = Token<'a, 'b, Terminal>>;
-
-    /// This method will provide an iterator for output tokens
-    /// from a specific `input` with an optional `name`.
-    fn parse(input: &'a str, name: Option<&'b str>) -> Self::InputLexer;
-}
