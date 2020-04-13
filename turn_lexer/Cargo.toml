@@ -1,6 +1,6 @@
 [package]
 name = "turn_lexer"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Radek Vit <radekvitr@gmail.com>"]
 edition = "2018"
 
