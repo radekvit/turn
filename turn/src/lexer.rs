@@ -3,12 +3,12 @@
 /// # Examples
 ///
 /// ```
-/// let loc = turn_lexer::Location::new();
+/// let loc = turn::Location::new();
 /// assert_eq!(loc.row, 1);
 /// assert_eq!(loc.col, 1);
 /// assert_eq!(loc.filename, Option::None);
 ///
-/// let mut locf = turn_lexer::Location::from_file("stdin");
+/// let mut locf = turn::Location::from_file("stdin");
 /// assert_eq!(locf.filename, Option::Some("stdin"));
 /// locf.advance('a');
 /// assert_eq!(locf.row, 1);
@@ -32,7 +32,7 @@ impl<'a> Location<'a> {
     ///
     /// # Examples
     /// ```
-    /// let loc = turn_lexer::Location::new();
+    /// let loc = turn::Location::new();
     /// assert_eq!(loc.row, 1);
     /// assert_eq!(loc.col, 1);
     /// assert_eq!(loc.filename, Option::None);
@@ -48,7 +48,7 @@ impl<'a> Location<'a> {
     ///
     /// # Examples
     /// ```
-    /// let loc = turn_lexer::Location::from_file("filename");
+    /// let loc = turn::Location::from_file("filename");
     /// assert_eq!(loc.row, 1);
     /// assert_eq!(loc.col, 1);
     /// assert_eq!(loc.filename, Option::Some("filename"));
@@ -64,7 +64,7 @@ impl<'a> Location<'a> {
     ///
     /// # Examples
     /// ```
-    /// let mut loc = turn_lexer::Location::new();
+    /// let mut loc = turn::Location::new();
     /// for _ in 0..10 {
     ///     loc.advance('👍');
     /// }
@@ -88,7 +88,7 @@ impl<'a> Location<'a> {
 ///
 /// # Examples
 /// ```
-/// use turn_lexer::{Location, Token};
+/// use turn::{Location, Token};
 /// let token = Token {symbol: 0u32, attribute: "", location: Location::new()};
 /// assert_eq!(token.symbol, 0);
 /// assert_eq!(token.attribute, "");
