@@ -1,29 +1,29 @@
 error: Attribute token must be a string or char literal.
- --> $DIR/test10-reject_invalid_regex.rs:6:7
+ --> $DIR/test09-reject_invalid_regex.rs:6:7
   |
 6 |     #[token = 420]
   |       ^^^^^
 
 error: Token specification must be in the format #[token = ...].
-  --> $DIR/test10-reject_invalid_regex.rs:15:7
+  --> $DIR/test09-reject_invalid_regex.rs:15:7
    |
 15 |     #[token]
    |       ^^^^^
 
 error: Regex specification must be in the format #[regex = ...].
-  --> $DIR/test10-reject_invalid_regex.rs:22:7
+  --> $DIR/test09-reject_invalid_regex.rs:22:7
    |
 22 |     #[regex ("three", "four")]
    |       ^^^^^
 
 error: Regex specification must be in the format #[regex = ...].
-  --> $DIR/test10-reject_invalid_regex.rs:29:7
+  --> $DIR/test09-reject_invalid_regex.rs:29:7
    |
 29 |     #[regex]
    |       ^^^^^
 
 error: #[skip = ...] must be specified at enum level.
-  --> $DIR/test10-reject_invalid_regex.rs:36:7
+  --> $DIR/test09-reject_invalid_regex.rs:36:7
    |
 36 |     #[skip = "abcd"]
    |       ^^^^

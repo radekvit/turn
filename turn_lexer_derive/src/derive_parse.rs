@@ -169,13 +169,6 @@ fn get_variant(variant: &Variant) -> Result<(Ident, Vec<Regex>), Error> {
             continue;
         }
     }
-    if regex.is_empty() {
-        return Err(Error::new(
-            variant.ident.span(),
-            "At least one #[token = ...] or #[regex = ...] 
-            must be specified for each variant.",
-        ));
-    }
     Ok((variant.ident.clone(), regex))
 }
 

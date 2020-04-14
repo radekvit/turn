@@ -8,6 +8,7 @@ enum Foo {
     #[regex = "[tT]wo."]
     #[token = "two"]
     Two,
+    Three,
 }
 
 fn main() {}

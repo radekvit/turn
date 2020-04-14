@@ -1,6 +1,0 @@
-error: At least one #[token = ...] or #[regex = ...] 
-            must be specified for each variant.
- --> $DIR/test09-reject_missing_regex.rs:8:5
-  |
-8 |     Two,
-  |     ^^^
