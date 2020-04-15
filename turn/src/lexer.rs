@@ -17,7 +17,7 @@
 /// assert_eq!(locf.row, 2);
 /// assert_eq!(locf.col, 1);
 /// ```
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct Location<'a> {
     /// The row number.
     pub row: u64,
@@ -76,10 +76,10 @@ impl<'a> Location<'a> {
     /// ```
     pub fn advance(&mut self, c: char) {
         if c == '\n' {
-            self.row = self.row + 1;
+            self.row += 1;
             self.col = 1;
         } else {
-            self.col = self.col + 1;
+            self.col += 1;
         }
     }
 }

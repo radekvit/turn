@@ -43,7 +43,7 @@ pub fn parse(input: DeriveInput) -> Result<TerminalEnum, syn::Error> {
 /// Checks that the input represents an enum where all options have no data fields
 fn check_plain_enum(input: &DeriveInput) -> Result<&DataEnum, Error> {
     // check that the input is an enum
-    let ref data = match &input.data {
+    let data = match &input.data {
         Data::Enum(data) => data,
         _ => {
             return Err(Error::new(
@@ -66,24 +66,26 @@ fn check_enum_item(item: &Variant) -> Result<(), Error> {
         _ => {
             return Err(Error::new(
                 item.ident.span(),
-                format!("Lexer enum variants must be units (try \"{},\").", item.ident),
+                format!(
+                    "Lexer enum variants must be units (try \"{},\").",
+                    item.ident
+                ),
             ))
         }
     }
     // check that it does not define an explicit discriminant
-    if let Some(_) = item.discriminant {
+    if item.discriminant.is_some() {
         return Err(Error::new(
             item.ident.span(),
-                            "Lexer enum variants must not define an explicit discriminant."
-            ,
+            "Lexer enum variants must not define an explicit discriminant.",
         ));
     };
     Ok(())
 }
 
-fn get_skip_regex(attrs: &Vec<Attribute>) -> Result<Option<RegexValue>, Error> {
+fn get_skip_regex(attrs: &[Attribute]) -> Result<Option<RegexValue>, Error> {
     let mut skip_regex = None;
-    for ref attr in attrs {
+    for attr in attrs {
         if let Some(ident) = attr.path.get_ident() {
             if ident == "token" {
                 return Err(Error::new(
@@ -98,7 +100,7 @@ fn get_skip_regex(attrs: &Vec<Attribute>) -> Result<Option<RegexValue>, Error> {
             } else if ident == "skip" {
                 match attr.parse_meta()? {
                     Meta::NameValue(ref value) => {
-                        if let Some(_) = skip_regex {
+                        if skip_regex.is_some() {
                             return Err(Error::new(
                                 attr.path.get_ident().unwrap().span(),
                                 "Multiple definitions of #[skip = ...].",
@@ -124,7 +126,7 @@ fn get_skip_regex(attrs: &Vec<Attribute>) -> Result<Option<RegexValue>, Error> {
 
 fn get_variants(data: &DataEnum) -> Result<BTreeMap<Ident, Vec<Regex>>, Error> {
     let mut result = BTreeMap::new();
-    for ref variant in &data.variants {
+    for variant in &data.variants {
         let (key, value) = get_variant(variant)?;
         result.insert(key, value);
     }

@@ -7,8 +7,8 @@ pub enum Matcher {
 }
 
 impl Matcher {
-    pub fn is_matching(&self, c: char) -> bool {
-        match *self {
+    pub fn is_matching(self, c: char) -> bool {
+        match self {
             Matcher::Character(pattern) => c == pattern,
             Matcher::Category(category) => category.is_matching(c),
         }
@@ -36,10 +36,10 @@ pub enum CharacterCategory {
 }
 
 impl CharacterCategory {
-    pub fn is_matching(&self, c: char) -> bool {
+    pub fn is_matching(self, c: char) -> bool {
         use CharacterCategory::*;
 
-        match *self {
+        match self {
             AsciiAlphanumeric => c.is_ascii_alphanumeric(),
             AsciiAlpha => c.is_ascii_alphabetic(),
             AsciiBinaryDigit => c.is_digit(2),
@@ -57,10 +57,10 @@ impl CharacterCategory {
         }
     }
 
-    pub fn subset_ordering(&self, other: &CharacterCategory) -> Option<Ordering> {
+    pub fn subset_ordering(self, other: CharacterCategory) -> Option<Ordering> {
         use CharacterCategory::*;
 
-        match (*self, *other) {
+        match (self, other) {
             (x, y) if x == y => Some(Ordering::Equal),
             // AsciiAlphanumeric
             (AsciiAlphanumeric, Utf8Alphanumeric) => Some(Ordering::Less),
@@ -141,6 +141,13 @@ impl CharacterCategory {
             _ => None,
         }
     }
+    pub fn is_subset(self, other: CharacterCategory) -> bool {
+        self.subset_ordering(other) == Some(Ordering::Less)
+    }
+
+    pub fn is_superset(self, other: CharacterCategory) -> bool {
+        self.subset_ordering(other) == Some(Ordering::Greater)
+    }
 }
 
 impl PartialOrd for CharacterCategory {
@@ -151,7 +158,7 @@ impl PartialOrd for CharacterCategory {
 
 impl Ord for CharacterCategory {
     fn cmp(&self, other: &CharacterCategory) -> Ordering {
-        match self.subset_ordering(other) {
+        match self.subset_ordering(*other) {
             Some(ordering) => ordering,
             None => (*self as usize).cmp(&(*other as usize)),
         }

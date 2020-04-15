@@ -5,7 +5,7 @@ pub mod lexer;
 
 pub use lexer::*;
 
-pub fn parse<'a, 'b, Symbol, Lexer>(_lexer: Lexer) -> ()
+pub fn parse<'a, 'b, Symbol, Lexer>(_lexer: Lexer)
 where
     Lexer: Iterator<Item = Result<lexer::Token<'a, 'b, Symbol>, ()>>,
 {

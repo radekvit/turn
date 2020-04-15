@@ -46,15 +46,10 @@ ascii:
 - `<0-9>`: matches decimal digits
 - `<0x>`: matches hex digits
 - `< >`: `[ \t\n\r\f\v]`
-- `\t`: tab
-- `\n`: newline
-- `\r`: carriage return
-- `\f`: form feed
-- `\v`: vertical tab
 ```
 
 Examples:
-- C identifier: `"[_<a-Z>][_<a-Z><0-9>]*"`
+- C identifier: `"[_<a-Z>][_<0-Z>]*"`
 - CamelCaseIndentifier: `"<A-Z><a-Z>*"`
 - utf-8 CamelCaseIndentifier: `"<upper><alpha>*"`
 - JSON number: `"-?(([123456789]<0-9>*)|0)(.<0-9>+)?([eE][+-]?<0-9>+)?"`
