@@ -22,7 +22,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         Err(error) => return error.to_compile_error().into(),
     };
     // create a minimal finite state automaton from the input
-    let _automaton = match automata::create_minimal_automaton(input) {
+    let _automaton = match automata::create_minimal_automaton(&input) {
         Ok(automaton) => automaton,
         Err(error) => return error.to_compile_error().into(),
     };
