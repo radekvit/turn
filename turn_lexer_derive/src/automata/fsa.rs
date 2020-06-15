@@ -9,6 +9,13 @@ pub struct FSA<Token> {
 }
 
 impl<Token> FSA<Token> {
+    pub fn transition(&self, state: usize, c: char) -> BTreeSet<usize> {
+        self.states[state].transition(c)
+    }
+
+    pub fn token(&self, state: usize) -> Option<&Token> {
+        self.states[state].token.as_ref()
+    }
     /// Parse a token specification and create a nondeterministic finite state automaton
     /// with epsilon transitions from it.
     ///
@@ -95,14 +102,6 @@ impl<Token> FSA<Token> {
         // insert new starting state
         states.insert(0, first_state);
         FSA { states }
-    }
-
-    pub fn transition(&self, state: usize, c: char) -> BTreeSet<usize> {
-        self.states[state].transition(c)
-    }
-
-    pub fn token(&self, state: usize) -> Option<&Token> {
-        self.states[state].token.as_ref()
     }
 }
 

@@ -1,0 +1,15 @@
+[package]
+name = "turn_regex_syntax"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["Radek Vit <radekvitr@gmail.com>"]
+description = "Library for parsing regular expressions for the Turn parsing library."
+keywords = ["turn", "regex"]
+readme = "crates-io.md"
+edition = "2018"
+
+[lib]
+name = "turn_regex_syntax"
+
+[dependencies]
+turn_utils = { version = "0.1", path = "../turn_utils" }

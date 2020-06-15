@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 /// A struct containing source location information for a token.
 ///
 /// # Examples
@@ -23,6 +25,7 @@ pub struct Location<'a> {
     pub row: u64,
     /// The column number.
     pub col: u64,
+    pub span: (usize, usize),
     /// The name of the originator file (optional).
     pub filename: Option<&'a str>,
 }
@@ -35,12 +38,14 @@ impl<'a> Location<'a> {
     /// let loc = turn::Location::new();
     /// assert_eq!(loc.row, 1);
     /// assert_eq!(loc.col, 1);
+    /// assert_eq!(loc.span, (0, 0));
     /// assert_eq!(loc.filename, Option::None);
     /// ```
     pub fn new() -> Self {
         Location {
             row: 1,
             col: 1,
+            span: (0, 0),
             filename: None,
         }
     }
@@ -57,6 +62,7 @@ impl<'a> Location<'a> {
         Location {
             row: 1,
             col: 1,
+            span: (0, 0),
             filename: Some(filename),
         }
     }
@@ -70,9 +76,11 @@ impl<'a> Location<'a> {
     /// }
     /// assert_eq!(loc.row, 1);
     /// assert_eq!(loc.col, 11);
+    /// assert_eq!(loc.span, (0, 10));
     /// loc.advance('\n');
     /// assert_eq!(loc.row, 2);
     /// assert_eq!(loc.col, 1);
+    /// assert_eq!(loc.span, (0, 11));
     /// ```
     pub fn advance(&mut self, c: char) {
         if c == '\n' {
@@ -81,6 +89,7 @@ impl<'a> Location<'a> {
         } else {
             self.col += 1;
         }
+        self.span.1 += 1;
     }
 }
 

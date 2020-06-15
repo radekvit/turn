@@ -5,6 +5,7 @@ extern crate proc_macro;
 mod automata;
 mod derive_parse;
 mod matchers;
+mod set_ordering;
 //mod lexer_impl;
 
 use proc_macro::TokenStream;

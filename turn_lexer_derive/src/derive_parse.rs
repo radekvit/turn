@@ -16,13 +16,13 @@ pub enum Regex {
     Regex(RegexValue),
 }
 
-pub struct TerminalEnum {
-    pub name: Ident,
+pub struct InputTokenRegexes {
+    pub enum_name: Ident,
     pub skip_regex: RegexValue,
     pub variants: BTreeMap<Ident, Vec<Regex>>,
 }
 
-pub fn parse(input: DeriveInput) -> Result<TerminalEnum, syn::Error> {
+pub fn parse(input: DeriveInput) -> Result<InputTokenRegexes, syn::Error> {
     let default_skip = RegexValue {
         span: Span::call_site(),
         regex: "<whitespace>*".to_owned(),
@@ -33,8 +33,8 @@ pub fn parse(input: DeriveInput) -> Result<TerminalEnum, syn::Error> {
     let skip_regex = get_skip_regex(&input.attrs)?.unwrap_or(default_skip);
     // get regex and tokens for all enum items
     let variants = get_variants(data)?;
-    Ok(TerminalEnum {
-        name: input.ident,
+    Ok(InputTokenRegexes {
+        enum_name: input.ident,
         skip_regex,
         variants,
     })

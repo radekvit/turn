@@ -2,4 +2,6 @@
 members = [
     "turn",
     "turn_lexer_derive",
+    "turn_regex_syntax",
+    "turn_utils",
 ]

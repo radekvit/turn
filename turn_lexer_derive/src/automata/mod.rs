@@ -1,7 +1,7 @@
 mod dfsa;
 mod fsa;
 
-use crate::derive_parse::{Regex, TerminalEnum};
+use crate::derive_parse::{InputTokenRegexes, Regex};
 use dfsa::*;
 use fsa::*;
 //use nfsa::*;
@@ -12,7 +12,19 @@ struct LexerAutomata<'a> {
     items: Vec<FSA<&'a Ident>>,
 }
 
-pub fn create_minimal_automaton<'a>(input: &'a TerminalEnum) -> Result<DFSA<&'a Ident>, Error> {
+enum SkipRegex<Repr> {
+    Strict(Repr),
+    Permissive,
+}
+
+struct MinimalLexerAutomaton<'a> {
+    skip: DFSA<()>,
+    lexer: DFSA<&'a Ident>,
+}
+
+pub fn create_minimal_automaton<'a>(
+    input: &'a InputTokenRegexes,
+) -> Result<DFSA<&'a Ident>, Error> {
     let automata = create_automata(input)?;
     let _skip = automata.skip;
     let _automaton = FSA::union(automata.items);
@@ -22,7 +34,7 @@ pub fn create_minimal_automaton<'a>(input: &'a TerminalEnum) -> Result<DFSA<&'a 
     Ok(DFSA { states: vec![] })
 }
 
-fn create_automata<'a>(input: &'a TerminalEnum) -> Result<LexerAutomata<'a>, Error> {
+fn create_automata(input: &InputTokenRegexes) -> Result<LexerAutomata<'_>, Error> {
     // create skip regex FSA
     let automata: Result<_, _> = input
         .variants

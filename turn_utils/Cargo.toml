@@ -1,0 +1,14 @@
+[package]
+name = "turn_utils"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["Radek Vit <radekvitr@gmail.com>"]
+description = "Utility library for the turn parsing library"
+keywords = ["turn"]
+readme = "crates-io.md"
+edition = "2018"
+
+[lib]
+name = "turn_utils"
+
+[dependencies]
