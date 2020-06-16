@@ -3,6 +3,16 @@ use std::fmt;
 use turn_utils::text_reader::Position;
 use turn_utils::text_reader::TextReader;
 
+#[derive(Debug)]
+pub struct Lexer<'a> {
+    input: TextReader<'a>,
+}
+
+#[derive(Debug)]
+pub struct CategoryLexer<'a> {
+    input: TextReader<'a>,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token<'a> {
     Sequence(&'a str),
@@ -14,6 +24,12 @@ pub enum Token<'a> {
     LParenthesis,
     RParenthesis,
     Subexpression(&'a str),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum CategoryToken<'a> {
+    Sequence(&'a str),
+    Category(&'a str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,78 +62,6 @@ pub enum Error {
     RangeIntegerOverflow {
         position: Position,
     },
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Error::UnclosedSet { position } => write!(
-                f,
-                "Set starting at {}:{} is missing closing character ']'.",
-                position.row, position.col
-            ),
-            Error::UnclosedSubexpression { position } => write!(
-                f,
-                "Subexpression or category starting at {}:{} is missing closing character '>'.",
-                position.row, position.col
-            ),
-            Error::InvalidRepetitionRange { min, max } => write!(
-                f,
-                "Invalid repetition range: {} is greater than {}.",
-                min, max
-            ),
-            Error::InvalidRepetitionCharacter {
-                position,
-                character,
-            } => write!(
-                f,
-                "Invalid character '{}' inside repetition range at position {}:{}",
-                character, position.row, position.col
-            ),
-            Error::InvalidSetEscape {
-                position,
-                character,
-            } => write!(
-                f,
-                "Invalid escaped character '{}' inside set at position {}:{}",
-                character, position.row, position.col
-            ),
-            Error::InvalidEscape {
-                position,
-                character,
-            } => {
-                if let Some(c) = character {
-                    write!(
-                        f,
-                        "Invalid escaped character '{}' at position {}:{}",
-                        c, position.row, position.col
-                    )
-                } else {
-                    write!(
-                        f,
-                        "Unexpected end of input after '\\' at position {}:{}",
-                        position.row, position.col
-                    )
-                }
-            }
-            Error::UnclosedRepetition { position } => write!(
-                f,
-                "Unexpected end of input inside range specifier at position {}:{}",
-                position.row, position.col
-            ),
-            Error::RangeIntegerOverflow { position } => write!(
-                f,
-                "Integer range over 65_536 at position {}:{}",
-                position.row, position.col
-            ),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
-pub struct Lexer<'a> {
-    input: TextReader<'a>,
 }
 
 impl<'a> Lexer<'a> {
@@ -327,6 +271,141 @@ impl<'a> Iterator for Lexer<'a> {
         self.next_token()
     }
 }
+
+impl<'a> CategoryLexer<'a> {
+    pub fn new(input: &str) -> CategoryLexer {
+        CategoryLexer {
+            input: TextReader::new(input),
+        }
+    }
+
+    pub fn next_token(&mut self) -> Option<Result<CategoryToken<'a>, Error>> {
+        let position = self.input.current_position();
+        match self.input.next() {
+            Some('\\') => Some(self.escaped()),
+            Some('<') => Some(self.subexpression(position)),
+            Some(_) => Some(Ok(self.sequence(position))),
+            None => None,
+        }
+    }
+
+    fn escaped(&mut self) -> Result<CategoryToken<'a>, Error> {
+        let start = self.input.current_position();
+        match self.input.next() {
+            Some('<') => Ok(CategoryToken::Sequence(self.input.input_slice_from(start))),
+            Some(c) => Err(Error::InvalidEscape {
+                position: self.input.current_position(),
+                character: Some(c),
+            }),
+            None => Err(Error::InvalidEscape {
+                position: self.input.current_position(),
+                character: None,
+            }),
+        }
+    }
+
+    fn subexpression(&mut self, position: Position) -> Result<CategoryToken<'a>, Error> {
+        let start = self.input.current_position();
+        let mut end = self.input.current_position();
+        loop {
+            match self.input.next() {
+                Some('>') => {
+                    return Ok(CategoryToken::Category(self.input.input_slice(start..end)))
+                }
+                Some(_) => end = self.input.current_position(),
+                None => return Err(Error::UnclosedSubexpression { position }),
+            }
+        }
+    }
+
+    fn sequence(&mut self, position: Position) -> CategoryToken<'a> {
+        loop {
+            match self.input.peek() {
+                Some('<') | Some('\\') | None => break,
+                Some(_) => {
+                    self.input.next();
+                }
+            }
+        }
+        CategoryToken::Sequence(self.input.input_slice_from(position))
+    }
+}
+
+impl<'a> Iterator for CategoryLexer<'a> {
+    type Item = Result<CategoryToken<'a>, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_token()
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Error::UnclosedSet { position } => write!(
+                f,
+                "Set starting at {}:{} is missing closing character ']'.",
+                position.row, position.col
+            ),
+            Error::UnclosedSubexpression { position } => write!(
+                f,
+                "Subexpression or category starting at {}:{} is missing closing character '>'.",
+                position.row, position.col
+            ),
+            Error::InvalidRepetitionRange { min, max } => write!(
+                f,
+                "Invalid repetition range: {} is greater than {}.",
+                min, max
+            ),
+            Error::InvalidRepetitionCharacter {
+                position,
+                character,
+            } => write!(
+                f,
+                "Invalid character '{}' inside repetition range at position {}:{}",
+                character, position.row, position.col
+            ),
+            Error::InvalidSetEscape {
+                position,
+                character,
+            } => write!(
+                f,
+                "Invalid escaped character '{}' inside set at position {}:{}",
+                character, position.row, position.col
+            ),
+            Error::InvalidEscape {
+                position,
+                character,
+            } => {
+                if let Some(c) = character {
+                    write!(
+                        f,
+                        "Invalid escaped character '{}' at position {}:{}",
+                        c, position.row, position.col
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Unexpected end of input after '\\' at position {}:{}",
+                        position.row, position.col
+                    )
+                }
+            }
+            Error::UnclosedRepetition { position } => write!(
+                f,
+                "Unexpected end of input inside range specifier at position {}:{}",
+                position.row, position.col
+            ),
+            Error::RangeIntegerOverflow { position } => write!(
+                f,
+                "Integer range over 65_536 at position {}:{}",
+                position.row, position.col
+            ),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
@@ -578,5 +657,53 @@ mod tests {
                 Ok(Token::Subexpression("sub")),
             ]
         );
+    }
+
+    #[test]
+    fn parse_empty_category() {
+        let mut lexer = CategoryLexer::new("");
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn parse_sequence_category() {
+        let mut lexer = CategoryLexer::new("abcd");
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Sequence("abcd"))));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn parse_sequence_escape() {
+        let mut lexer = CategoryLexer::new("\\<\\[");
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Sequence("<"))));
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::InvalidEscape {
+                position: Position {
+                    row: 1,
+                    col: 5,
+                    index: 4,
+                },
+                character: Some('[')
+            }))
+        );
+    }
+
+    #[test]
+    fn parse_category_category() {
+        let mut lexer = CategoryLexer::new("<eyo>");
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Category("eyo"))));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn parse_full_category() {
+        let mut lexer = CategoryLexer::new("xx\\<<cat1><cat2>yy");
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Sequence("xx"))));
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Sequence("<"))));
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Category("cat1"))));
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Category("cat2"))));
+        assert_eq!(lexer.next(), Some(Ok(CategoryToken::Sequence("yy"))));
+        assert_eq!(lexer.next(), None);
     }
 }
