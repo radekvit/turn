@@ -3,6 +3,25 @@ use std::fmt;
 use turn_utils::text_reader::Position;
 use turn_utils::text_reader::TextReader;
 
+const END_OF_INPUT: Option<char> = None;
+const ESCAPE: Option<char> = Some('\\');
+const ANY_CHAR: Option<char> = Some('_');
+const ALTERNATION: Option<char> = Some('|');
+const REPETITION_STAR: Option<char> = Some('*');
+const REPETITION_PLUS: Option<char> = Some('+');
+const REPETITION_OPTIONAL: Option<char> = Some('?');
+const REPETITION_START: Option<char> = Some('{');
+const REPETITION_END: Option<char> = Some('}');
+const REPETITION_DIVIDER: Option<char> = Some('-');
+
+const LEFT_PARENTHESIS: Option<char> = Some('(');
+const RIGHT_PARENTHESIS: Option<char> = Some(')');
+const SUBEXPRESSION_START: Option<char> = Some('<');
+const SUBEXPRESSION_END: Option<char> = Some('>');
+const SET_START: Option<char> = Some('[');
+const SET_END: Option<char> = Some(']');
+const SET_NEGATOR: Option<char> = Some('!');
+
 #[derive(Debug)]
 pub struct Lexer<'a> {
     input: TextReader<'a>,
@@ -74,33 +93,33 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Option<Result<Token<'a>, Error>> {
         let position = self.input.current_position();
         match self.input.next() {
-            Some('_') => Some(Ok(Token::AnyChar)),
-            Some('*') => Some(Ok(Token::Repetition { min: 0, max: None })),
-            Some('+') => Some(Ok(Token::Repetition { min: 1, max: None })),
-            Some('?') => Some(Ok(Token::Repetition {
+            ANY_CHAR => Some(Ok(Token::AnyChar)),
+            REPETITION_STAR => Some(Ok(Token::Repetition { min: 0, max: None })),
+            REPETITION_PLUS => Some(Ok(Token::Repetition { min: 1, max: None })),
+            REPETITION_OPTIONAL => Some(Ok(Token::Repetition {
                 min: 0,
                 max: Some(1),
             })),
-            Some('(') => Some(Ok(Token::LParenthesis)),
-            Some(')') => Some(Ok(Token::RParenthesis)),
-            Some('|') => Some(Ok(Token::Alternation)),
-            Some('{') => Some(self.repetition(position)),
-            Some('[') => Some(self.set(position)),
-            Some('<') => Some(self.subexpression(position)),
-            Some('\\') => Some(self.escaped()),
+            LEFT_PARENTHESIS => Some(Ok(Token::LParenthesis)),
+            RIGHT_PARENTHESIS => Some(Ok(Token::RParenthesis)),
+            ALTERNATION => Some(Ok(Token::Alternation)),
+            REPETITION_START => Some(self.repetition(position)),
+            SET_START => Some(self.set(position)),
+            SUBEXPRESSION_START => Some(self.subexpression(position)),
+            ESCAPE => Some(self.escaped()),
             Some(_) => Some(Ok(self.sequence(position))),
-            None => None,
+            END_OF_INPUT => None,
         }
     }
 
     fn repetition(&mut self, position: Position) -> Result<Token<'a>, Error> {
         let min = self.integer(position)?;
         match self.input.peek() {
-            Some('-') => {
+            REPETITION_DIVIDER => {
                 self.input.next();
                 let max = self.integer(self.input.current_position())?;
                 match self.input.peek() {
-                    Some('}') => {
+                    REPETITION_END => {
                         self.input.next();
                         let min = min.unwrap_or(0);
                         if let Some(max) = max {
@@ -114,10 +133,10 @@ impl<'a> Lexer<'a> {
                         position: self.input.current_position(),
                         character: c,
                     }),
-                    None => Err(Error::UnclosedRepetition { position }),
+                    END_OF_INPUT => Err(Error::UnclosedRepetition { position }),
                 }
             }
-            Some('}') => {
+            REPETITION_END => {
                 self.input.next();
                 let min = min.unwrap_or(0);
                 Ok(Token::Repetition {
@@ -129,14 +148,14 @@ impl<'a> Lexer<'a> {
                 position: self.input.current_position(),
                 character: c,
             }),
-            None => Err(Error::UnclosedRepetition { position }),
+            END_OF_INPUT => Err(Error::UnclosedRepetition { position }),
         }
     }
 
     fn set(&mut self, starting_position: Position) -> Result<Token<'a>, Error> {
         let mut members = Vec::new();
         // check if first character is '!'
-        let negated = if self.input.peek() == Some('!') {
+        let negated = if self.input.peek() == SET_NEGATOR {
             self.input.next();
             true
         } else {
@@ -146,12 +165,12 @@ impl<'a> Lexer<'a> {
         loop {
             match self.input.peek() {
                 // end set
-                Some(']') => {
+                SET_END => {
                     self.input.next();
                     break;
                 }
                 // process subexpression (assuming category)
-                Some('<') => {
+                SUBEXPRESSION_START => {
                     let start = self.input.current_position();
                     self.input.next();
                     let category = self.subexpression(start)?;
@@ -162,11 +181,11 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 // escaped characters within sets
-                Some('\\') => {
+                ESCAPE => {
                     self.input.next();
                     match self.input.next() {
-                        Some(c) if c == '\\' || c == '<' || c == ']' => {
-                            members.push(SetMember::Character(c))
+                        c if c == ESCAPE || c == SUBEXPRESSION_START || c == SET_END => {
+                            members.push(SetMember::Character(c.unwrap()))
                         }
                         Some(c) => {
                             return Err(Error::InvalidSetEscape {
@@ -174,7 +193,7 @@ impl<'a> Lexer<'a> {
                                 character: c,
                             })
                         }
-                        None => {
+                        END_OF_INPUT => {
                             return Err(Error::UnclosedSet {
                                 position: starting_position,
                             })
@@ -185,7 +204,7 @@ impl<'a> Lexer<'a> {
                     self.input.next();
                     members.push(SetMember::Character(x));
                 }
-                None => {
+                END_OF_INPUT => {
                     return Err(Error::UnclosedSet {
                         position: starting_position,
                     });
@@ -204,9 +223,11 @@ impl<'a> Lexer<'a> {
         let mut end = self.input.current_position();
         loop {
             match self.input.next() {
-                Some('>') => return Ok(Token::Subexpression(self.input.input_slice(start..end))),
+                SUBEXPRESSION_END => {
+                    return Ok(Token::Subexpression(self.input.input_slice(start..end)))
+                }
                 Some(_) => end = self.input.current_position(),
-                None => return Err(Error::UnclosedSubexpression { position }),
+                END_OF_INPUT => return Err(Error::UnclosedSubexpression { position }),
             }
         }
     }
@@ -214,12 +235,13 @@ impl<'a> Lexer<'a> {
     fn sequence(&mut self, start: Position) -> Token<'a> {
         loop {
             match self.input.peek() {
-                Some('_') | Some('*') | Some('+') | Some('?') | Some('(') | Some(')')
-                | Some('|') | Some('{') | Some('[') | Some('<') | Some('\\') => break,
+                ANY_CHAR | REPETITION_STAR | REPETITION_PLUS | REPETITION_OPTIONAL
+                | LEFT_PARENTHESIS | RIGHT_PARENTHESIS | ALTERNATION | REPETITION_START
+                | SET_START | SUBEXPRESSION_START | ESCAPE => break,
                 Some(_) => {
                     self.input.next();
                 }
-                None => break,
+                END_OF_INPUT => break,
             }
         }
         Token::Sequence(self.input.input_slice_from(start))
@@ -228,15 +250,16 @@ impl<'a> Lexer<'a> {
     fn escaped(&mut self) -> Result<Token<'a>, Error> {
         let start = self.input.current_position();
         match self.input.next() {
-            Some('_') | Some('*') | Some('+') | Some('?') | Some('{') | Some('}') | Some('\\')
-            | Some('[') | Some(']') | Some('|') | Some('(') | Some(')') | Some('<') | Some('>') => {
+            ANY_CHAR | REPETITION_STAR | REPETITION_PLUS | REPETITION_OPTIONAL
+            | REPETITION_START | REPETITION_END | ESCAPE | SET_START | SET_END | ALTERNATION
+            | LEFT_PARENTHESIS | RIGHT_PARENTHESIS | SUBEXPRESSION_START | SUBEXPRESSION_END => {
                 Ok(Token::Sequence(self.input.input_slice_from(start)))
             }
             Some(c) => Err(Error::InvalidEscape {
                 position: self.input.current_position(),
                 character: Some(c),
             }),
-            None => Err(Error::InvalidEscape {
+            END_OF_INPUT => Err(Error::InvalidEscape {
                 position: self.input.current_position(),
                 character: None,
             }),
@@ -282,22 +305,22 @@ impl<'a> CategoryLexer<'a> {
     pub fn next_token(&mut self) -> Option<Result<CategoryToken<'a>, Error>> {
         let position = self.input.current_position();
         match self.input.next() {
-            Some('\\') => Some(self.escaped()),
-            Some('<') => Some(self.subexpression(position)),
+            ESCAPE => Some(self.escaped()),
+            SUBEXPRESSION_START => Some(self.subexpression(position)),
             Some(_) => Some(Ok(self.sequence(position))),
-            None => None,
+            END_OF_INPUT => None,
         }
     }
 
     fn escaped(&mut self) -> Result<CategoryToken<'a>, Error> {
         let start = self.input.current_position();
         match self.input.next() {
-            Some('<') => Ok(CategoryToken::Sequence(self.input.input_slice_from(start))),
+            SUBEXPRESSION_START => Ok(CategoryToken::Sequence(self.input.input_slice_from(start))),
             Some(c) => Err(Error::InvalidEscape {
                 position: self.input.current_position(),
                 character: Some(c),
             }),
-            None => Err(Error::InvalidEscape {
+            END_OF_INPUT => Err(Error::InvalidEscape {
                 position: self.input.current_position(),
                 character: None,
             }),
@@ -309,11 +332,11 @@ impl<'a> CategoryLexer<'a> {
         let mut end = self.input.current_position();
         loop {
             match self.input.next() {
-                Some('>') => {
+                SUBEXPRESSION_END => {
                     return Ok(CategoryToken::Category(self.input.input_slice(start..end)))
                 }
                 Some(_) => end = self.input.current_position(),
-                None => return Err(Error::UnclosedSubexpression { position }),
+                END_OF_INPUT => return Err(Error::UnclosedSubexpression { position }),
             }
         }
     }
@@ -321,7 +344,7 @@ impl<'a> CategoryLexer<'a> {
     fn sequence(&mut self, position: Position) -> CategoryToken<'a> {
         loop {
             match self.input.peek() {
-                Some('<') | Some('\\') | None => break,
+                SUBEXPRESSION_START | ESCAPE | END_OF_INPUT => break,
                 Some(_) => {
                     self.input.next();
                 }
@@ -684,7 +707,7 @@ mod tests {
                     col: 5,
                     index: 4,
                 },
-                character: Some('[')
+                character: SET_START
             }))
         );
     }

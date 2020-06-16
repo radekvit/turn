@@ -1,6 +1,8 @@
+use crate::hir::SetMember;
+use crate::hir::HIR;
 use crate::lexer;
+use crate::lexer::CategoryToken;
 use crate::lexer::Token;
-use crate::HIR;
 use std::convert::From;
 use std::fmt;
 
@@ -36,11 +38,32 @@ impl From<lexer::Error> for Error {
     }
 }
 
-pub fn parse<'a, Iter>(mut input: Iter) -> Result<HIR<'a>, Error>
+pub fn parse_regex<'a, Iter>(mut input: Iter) -> Result<HIR<'a>, Error>
 where
     Iter: Iterator<Item = Result<Token<'a>, lexer::Error>>,
 {
-    parse_regex(&mut input, &match_end)
+    parse_regex_to(&mut input, &match_end)
+}
+
+pub fn parse_category<'a, Iter>(mut input: Iter) -> Result<HIR<'a>, Error>
+where
+    Iter: Iterator<Item = Result<CategoryToken<'a>, lexer::Error>>,
+{
+    let mut set_members = vec![];
+    loop {
+        let token = input.next();
+        if token.is_none() {
+            break;
+        }
+        let token = token.unwrap();
+        match token? {
+            CategoryToken::Sequence(members) => members
+                .chars()
+                .for_each(|c| set_members.push(SetMember::Character(c))),
+            CategoryToken::Category(category) => set_members.push(SetMember::Category(category)),
+        }
+    }
+    Ok(HIR::Set(set_members))
 }
 
 fn match_end<'a>(token: &Option<Result<Token<'a>, lexer::Error>>) -> bool {
@@ -51,7 +74,7 @@ fn match_right_parenthesis<'a>(token: &Option<Result<Token<'a>, lexer::Error>>) 
     *token == Some(Ok(Token::RParenthesis))
 }
 
-fn parse_regex<'a, Iter, F>(input: &mut Iter, terminate: &F) -> Result<HIR<'a>, Error>
+fn parse_regex_to<'a, Iter, F>(input: &mut Iter, terminate: &F) -> Result<HIR<'a>, Error>
 where
     Iter: Iterator<Item = Result<Token<'a>, lexer::Error>>,
     F: Fn(&Option<Result<Token<'a>, lexer::Error>>) -> bool,
@@ -82,7 +105,7 @@ where
             Token::Alternation => {
                 let mut left_alternative = Vec::new();
                 std::mem::swap(&mut regexes, &mut left_alternative);
-                let right_alternative = parse_regex(input, terminate)?;
+                let right_alternative = parse_regex_to(input, terminate)?;
                 let left_alternative = if left_alternative.len() == 1 {
                     left_alternative.remove(0)
                 } else {
@@ -99,7 +122,7 @@ where
                 }
                 break;
             }
-            Token::LParenthesis => regexes.push(parse_regex(input, &match_right_parenthesis)?),
+            Token::LParenthesis => regexes.push(parse_regex_to(input, &match_right_parenthesis)?),
             Token::RParenthesis => return Err(ParserError::UnexpectedRParenthesis.into()),
             Token::Subexpression(subexpression) => regexes.push(HIR::SubRegex(subexpression)),
         }

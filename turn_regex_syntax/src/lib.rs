@@ -3,11 +3,18 @@ mod lexer;
 mod parser;
 
 pub use hir::HIR;
+use lexer::CategoryLexer;
 use lexer::Lexer;
 pub use parser::Error;
 
+/// TODO add documentation
 pub fn parse_regex(regex: &str) -> Result<HIR, Error> {
-    parser::parse(Lexer::new(regex))
+    parser::parse_regex(Lexer::new(regex))
+}
+
+/// TODO add documentation
+pub fn parse_category(regex: &str) -> Result<HIR, Error> {
+    parser::parse_category(CategoryLexer::new(regex))
 }
 
 #[cfg(test)]
@@ -281,6 +288,48 @@ mod tests {
                     min: 0,
                     max: Some(1)
                 },
+            ])
+        );
+    }
+
+    #[test]
+    fn parse_category_characters() {
+        let hir = parse_category("abcd").expect("Failed to parse");
+
+        assert_eq!(
+            hir,
+            HIR::Set(vec![
+                SetMember::Character('a'),
+                SetMember::Character('b'),
+                SetMember::Character('c'),
+                SetMember::Character('d'),
+            ])
+        );
+    }
+
+    #[test]
+    fn parse_category_categories() {
+        let hir = parse_category("<cat><dog>").expect("Failed to parse");
+
+        assert_eq!(
+            hir,
+            HIR::Set(vec![SetMember::Category("cat"), SetMember::Category("dog"),])
+        );
+    }
+
+    #[test]
+    fn parse_category_1() {
+        let hir = parse_category("ab<cat>cd<dog>").expect("Failed to parse");
+
+        assert_eq!(
+            hir,
+            HIR::Set(vec![
+                SetMember::Character('a'),
+                SetMember::Character('b'),
+                SetMember::Category("cat"),
+                SetMember::Character('c'),
+                SetMember::Character('d'),
+                SetMember::Category("dog"),
             ])
         );
     }
