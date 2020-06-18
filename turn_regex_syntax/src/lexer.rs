@@ -183,8 +183,9 @@ impl<'a> Lexer<'a> {
                 // escaped characters within sets
                 ESCAPE => {
                     self.input.next();
-                    match self.input.next() {
+                    match self.input.peek() {
                         c if c == ESCAPE || c == SUBEXPRESSION_START || c == SET_END => {
+                            self.input.next();
                             members.push(SetMember::Character(c.unwrap()))
                         }
                         Some(c) => {
@@ -489,7 +490,7 @@ mod tests {
 
     #[test]
     fn parse_repetition_variants() {
-        let mut lexer = Lexer::new("{99}{-1}{2-}{2-7}{7-2}{0-z2}");
+        let mut lexer = Lexer::new("{99}{-1}{2-}{2-7}{7-2}");
         assert_eq!(
             lexer.next(),
             Some(Ok(Token::Repetition {
@@ -519,16 +520,60 @@ mod tests {
             lexer.next(),
             Some(Err(Error::InvalidRepetitionRange { min: 7, max: 2 }))
         );
+    }
+
+    #[test]
+    fn parse_repetition_errors() {
+        let mut lexer = Lexer::new("{z}");
         assert_eq!(
             lexer.next(),
             Some(Err(Error::InvalidRepetitionCharacter {
                 position: Position {
                     row: 1,
-                    col: 26,
-                    index: 25,
+                    col: 2,
+                    index: 1
                 },
                 character: 'z'
             }))
+        );
+        let mut lexer = Lexer::new("{-y}");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::InvalidRepetitionCharacter {
+                position: Position {
+                    row: 1,
+                    col: 3,
+                    index: 2
+                },
+                character: 'y'
+            }))
+        );
+        let mut lexer = Lexer::new("{");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::UnclosedRepetition {
+                position: Position {
+                    row: 1,
+                    col: 1,
+                    index: 0
+                },
+            }))
+        );
+        let mut lexer = Lexer::new("{0-");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::UnclosedRepetition {
+                position: Position {
+                    row: 1,
+                    col: 1,
+                    index: 0
+                },
+            }))
+        );
+        let mut lexer = Lexer::new("{5-1}");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::InvalidRepetitionRange { min: 5, max: 1 }))
         );
     }
 
@@ -549,6 +594,55 @@ mod tests {
             ])))
         );
         assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn parse_set_errors() {
+        let mut lexer = Lexer::new("[se<t>\\<[\\]!\\\\");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::UnclosedSet {
+                position: Position {
+                    row: 1,
+                    col: 1,
+                    index: 0
+                }
+            }))
+        );
+        let mut lexer = Lexer::new("[\\");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::UnclosedSet {
+                position: Position {
+                    row: 1,
+                    col: 1,
+                    index: 0
+                }
+            }))
+        );
+        let mut lexer = Lexer::new("[\\x");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::InvalidSetEscape {
+                character: 'x',
+                position: Position {
+                    row: 1,
+                    col: 3,
+                    index: 2
+                }
+            }))
+        );
+        let mut lexer = Lexer::new("[<");
+        assert_eq!(
+            lexer.next(),
+            Some(Err(Error::UnclosedSubexpression {
+                position: Position {
+                    row: 1,
+                    col: 2,
+                    index: 1
+                }
+            }))
+        );
     }
 
     #[test]

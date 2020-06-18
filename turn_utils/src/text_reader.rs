@@ -1,10 +1,8 @@
-use std::ops::Add;
-use std::ops::AddAssign;
 use std::ops::Range;
 use std::str::Chars;
 
 /// A position in an input string.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct Position {
     /// The row of the read character
     pub row: usize,
@@ -12,44 +10,6 @@ pub struct Position {
     pub col: usize,
     /// The character position based on the read character's utf8 widths.
     pub index: usize,
-}
-
-impl Add<char> for Position {
-    type Output = Position;
-
-    #[inline]
-    fn add(self, c: char) -> Position {
-        if c == '\n' {
-            Position {
-                row: self.row + 1,
-                col: 1,
-                index: self.index + c.len_utf8(),
-            }
-        } else {
-            Position {
-                row: self.row,
-                col: self.col + 1,
-                index: self.index + c.len_utf8(),
-            }
-        }
-    }
-}
-
-impl AddAssign<char> for Position {
-    #[inline]
-    fn add_assign(&mut self, c: char) {
-        *self = *self + c;
-    }
-}
-
-impl Default for Position {
-    fn default() -> Position {
-        Position {
-            row: 1,
-            col: 1,
-            index: 0,
-        }
-    }
 }
 
 /// Input text reader. Acts as an iterator over the input characters and allows peeking.
@@ -73,12 +33,43 @@ impl Default for Position {
 /// assert_eq!(reader.next(), None);
 /// assert_eq!(reader.input_slice_from(position), "da 💣");
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextReader<'a> {
     input: &'a str,
     peek: Option<char>,
     iter: Chars<'a>,
     position: Position,
+}
+
+impl Position {
+    /// Create a new Position representing the first character of any input.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Advance the position after reading a specific character.
+    ///
+    /// Advancing the position after a newline character
+    /// will increment the row and set the column to 1.
+    pub fn advance(&mut self, character: char) {
+        if character == '\n' {
+            self.row += 1;
+            self.col = 1;
+        } else {
+            self.col += 1;
+        }
+        self.index += character.len_utf8();
+    }
+}
+
+impl Default for Position {
+    fn default() -> Position {
+        Position {
+            row: 1,
+            col: 1,
+            index: 0,
+        }
+    }
 }
 
 impl<'a> TextReader<'a> {
@@ -115,7 +106,7 @@ impl<'a> TextReader<'a> {
     fn read_next(&mut self) -> Option<char> {
         let next = self.peek;
         if let Some(c) = self.peek {
-            self.position += c;
+            self.position.advance(c);
         }
         self.peek = self.iter.next();
         next
@@ -192,29 +183,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn increment_position() {
+    fn advance_position() {
         let mut position = Position {
             row: 42,
             col: 42,
             index: 69,
         };
-        assert_eq!(
-            position + 'ℝ',
-            Position {
-                row: 42,
-                col: 43,
-                index: 72
-            }
-        );
-        assert_eq!(
-            position + '\n',
-            Position {
-                row: 43,
-                col: 1,
-                index: 70
-            }
-        );
-        position += 'ß';
+        position.advance('ß');
         assert_eq!(
             position,
             Position {
@@ -223,7 +198,7 @@ mod tests {
                 index: 71
             }
         );
-        position += '\n';
+        position.advance('\n');
         assert_eq!(
             position,
             Position {
