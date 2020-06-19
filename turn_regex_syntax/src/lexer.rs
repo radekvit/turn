@@ -368,17 +368,18 @@ impl fmt::Display for Error {
         match *self {
             Error::UnclosedSet { position } => write!(
                 f,
-                "Set starting at {}:{} is missing closing character ']'.",
+                "the set starting at {}:{} is missing the closing character ']'",
                 position.row, position.col
             ),
             Error::UnclosedSubexpression { position } => write!(
                 f,
-                "Subexpression or category starting at {}:{} is missing closing character '>'.",
+                "the subexpression or category starting at {}:{}\
+                 is missing the closing character '>'",
                 position.row, position.col
             ),
             Error::InvalidRepetitionRange { min, max } => write!(
                 f,
-                "Invalid repetition range: {} is greater than {}.",
+                "invalid repetition range: {} is greater than {}",
                 min, max
             ),
             Error::InvalidRepetitionCharacter {
@@ -386,7 +387,7 @@ impl fmt::Display for Error {
                 character,
             } => write!(
                 f,
-                "Invalid character '{}' inside repetition range at position {}:{}",
+                "invalid character '{}' inside a repetition range at position {}:{}",
                 character, position.row, position.col
             ),
             Error::InvalidSetEscape {
@@ -394,7 +395,7 @@ impl fmt::Display for Error {
                 character,
             } => write!(
                 f,
-                "Invalid escaped character '{}' inside set at position {}:{}",
+                "invalid escaped character '{}' inside a set at position {}:{}",
                 character, position.row, position.col
             ),
             Error::InvalidEscape {
@@ -404,25 +405,25 @@ impl fmt::Display for Error {
                 if let Some(c) = character {
                     write!(
                         f,
-                        "Invalid escaped character '{}' at position {}:{}",
+                        "invalid escaped character '{}' at position {}:{}",
                         c, position.row, position.col
                     )
                 } else {
                     write!(
                         f,
-                        "Unexpected end of input after '\\' at position {}:{}",
+                        "unexpected end of input after '\\' at position {}:{}",
                         position.row, position.col
                     )
                 }
             }
             Error::UnclosedRepetition { position } => write!(
                 f,
-                "Unexpected end of input inside range specifier at position {}:{}",
+                "unexpected end of input inside range specifier at position {}:{}",
                 position.row, position.col
             ),
             Error::RangeIntegerOverflow { position } => write!(
                 f,
-                "Integer range over 65_536 at position {}:{}",
+                "integer range over 65_536 at position {}:{}",
                 position.row, position.col
             ),
         }
