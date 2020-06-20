@@ -8,7 +8,7 @@ pub type RegexToken<'a> = token::Token<'a, RegexResult<'a>>;
 pub type CategoryToken<'a> = token::Token<'a, CategoryResult<'a>>;
 
 pub type RegexResult<'a> = Result<RegexTerminal<'a>, LexicalError>;
-pub type CategoryResult<'a> = Result<CategoryNonterminal<'a>, LexicalError>;
+pub type CategoryResult<'a> = Result<CategoryTerminal<'a>, LexicalError>;
 
 const END_OF_INPUT: Option<char> = None;
 const ESCAPE: char = '\\';
@@ -53,7 +53,7 @@ pub enum RegexTerminal<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum CategoryNonterminal<'a> {
+pub enum CategoryTerminal<'a> {
     Sequence(&'a str),
     Category(&'a str),
 }
@@ -340,17 +340,17 @@ impl<'a> CategoryLexer<'a> {
     pub fn next_token(&mut self) -> Option<CategoryToken<'a>> {
         let position = self.input.current_position();
         let token = match self.input.next()? {
-            ESCAPE => self.escaped(position),
+            ESCAPE => self.escaped(),
             SUBEXPRESSION_START => self.subexpression(position),
             _ => self.sequence(position),
         };
         Some(CategoryToken::from_reader(token, position, &self.input))
     }
 
-    fn escaped(&mut self, position: Position) -> CategoryResult<'a> {
+    fn escaped(&mut self) -> CategoryResult<'a> {
         let start = self.input.current_position();
         match self.input.next() {
-            Some(SUBEXPRESSION_START) => Ok(CategoryNonterminal::Sequence(
+            Some(SUBEXPRESSION_START) => Ok(CategoryTerminal::Sequence(
                 self.input.input_slice_from(start),
             )),
             Some(c) => Err(LexicalError::InvalidEscape {
@@ -370,7 +370,7 @@ impl<'a> CategoryLexer<'a> {
         loop {
             match self.input.next() {
                 Some(SUBEXPRESSION_END) => {
-                    return Ok(CategoryNonterminal::Category(
+                    return Ok(CategoryTerminal::Category(
                         self.input.input_slice(start..end),
                     ))
                 }
@@ -389,7 +389,7 @@ impl<'a> CategoryLexer<'a> {
                 }
             }
         }
-        Ok(CategoryNonterminal::Sequence(
+        Ok(CategoryTerminal::Sequence(
             self.input.input_slice_from(position),
         ))
     }
@@ -1157,7 +1157,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Sequence("abcd")),
+                token: Ok(CategoryTerminal::Sequence("abcd")),
                 position: position_range(1..5, 0..4),
                 slice: "abcd",
             })
@@ -1171,7 +1171,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Sequence("<")),
+                token: Ok(CategoryTerminal::Sequence("<")),
                 position: position_range(1..3, 0..2),
                 slice: "\\<",
             })
@@ -1199,7 +1199,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Category("eyo")),
+                token: Ok(CategoryTerminal::Category("eyo")),
                 position: position_range(1..6, 0..5),
                 slice: "<eyo>"
             })
@@ -1213,7 +1213,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Sequence("xx")),
+                token: Ok(CategoryTerminal::Sequence("xx")),
                 position: position_range(1..3, 0..2),
                 slice: "xx",
             })
@@ -1221,7 +1221,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Sequence("<")),
+                token: Ok(CategoryTerminal::Sequence("<")),
                 position: position_range(3..5, 2..4),
                 slice: "\\<",
             })
@@ -1229,7 +1229,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Category("cat1")),
+                token: Ok(CategoryTerminal::Category("cat1")),
                 position: position_range(5..11, 4..10),
                 slice: "<cat1>",
             })
@@ -1237,7 +1237,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Category("cat2")),
+                token: Ok(CategoryTerminal::Category("cat2")),
                 position: position_range(11..17, 10..16),
                 slice: "<cat2>"
             })
@@ -1245,7 +1245,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(CategoryToken {
-                token: Ok(CategoryNonterminal::Sequence("yy")),
+                token: Ok(CategoryTerminal::Sequence("yy")),
                 position: position_range(17..19, 16..18),
                 slice: "yy"
             })

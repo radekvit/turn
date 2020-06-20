@@ -1,6 +1,6 @@
 use crate::hir::SetMember;
 use crate::hir::HIR;
-use crate::lexer::{CategoryToken, LexicalError, RegexToken, Token};
+use crate::lexer::{CategoryTerminal, CategoryToken, LexicalError, RegexTerminal, RegexToken};
 use std::convert::From;
 use std::fmt;
 
@@ -18,14 +18,14 @@ pub enum Error {
 
 pub fn parse_regex<'a, Iter>(mut input: Iter) -> Result<HIR<'a>, Error>
 where
-    Iter: Iterator<Item = Result<Token<RegexToken<'a>>, LexicalError>>,
+    Iter: Iterator<Item = RegexToken<'a>>,
 {
     parse_regex_to(&mut input, &match_end)
 }
 
 pub fn parse_category<'a, Iter>(mut input: Iter) -> Result<HIR<'a>, Error>
 where
-    Iter: Iterator<Item = Result<CategoryToken<'a>, LexicalError>>,
+    Iter: Iterator<Item = CategoryToken<'a>>,
 {
     let mut set_members = vec![];
     loop {
@@ -34,26 +34,24 @@ where
             break;
         }
         let token = token.unwrap();
-        match token? {
-            CategoryToken::Sequence(members) => members
+        match token.token? {
+            CategoryTerminal::Sequence(members) => members
                 .chars()
                 .for_each(|c| set_members.push(SetMember::Character(c))),
-            CategoryToken::Category(category) => set_members.push(SetMember::Category(category)),
+            CategoryTerminal::Category(category) => set_members.push(SetMember::Category(category)),
         }
     }
     Ok(HIR::Set(set_members))
 }
 
-fn match_end<'a>(token: &Option<Result<Token<RegexToken<'a>>, LexicalError>>) -> bool {
+fn match_end<'a>(token: &Option<RegexToken<'a>>) -> bool {
     token.is_none()
 }
 
-fn match_right_parenthesis<'a>(
-    token: &Option<Result<Token<RegexToken<'a>>, LexicalError>>,
-) -> bool {
+fn match_right_parenthesis<'a>(token: &Option<RegexToken<'a>>) -> bool {
     if let Some(token) = token {
-        if let Ok(token) = token {
-            token.token == RegexToken::RParenthesis
+        if let Ok(ref token) = token.token {
+            *token == RegexTerminal::RParenthesis
         } else {
             false
         }
@@ -64,8 +62,8 @@ fn match_right_parenthesis<'a>(
 
 fn parse_regex_to<'a, Iter, F>(input: &mut Iter, terminate: &F) -> Result<HIR<'a>, Error>
 where
-    Iter: Iterator<Item = Result<Token<RegexToken<'a>>, LexicalError>>,
-    F: Fn(&Option<Result<Token<RegexToken<'a>>, LexicalError>>) -> bool,
+    Iter: Iterator<Item = RegexToken<'a>>,
+    F: Fn(&Option<RegexToken<'a>>) -> bool,
 {
     let mut regexes = vec![];
     loop {
@@ -74,10 +72,10 @@ where
             break;
         }
         let token = token.unwrap();
-        match token?.token {
-            RegexToken::Sequence(sequence) => regexes.push(HIR::Sequence(sequence)),
-            RegexToken::AnyChar => regexes.push(HIR::AnyChar),
-            RegexToken::Repetition { min, max } => {
+        match token.token? {
+            RegexTerminal::Sequence(sequence) => regexes.push(HIR::Sequence(sequence)),
+            RegexTerminal::AnyChar => regexes.push(HIR::AnyChar),
+            RegexTerminal::Repetition { min, max } => {
                 if regexes.is_empty() {
                     return Err(ParsingError::StandaloneRepetition.into());
                 }
@@ -88,9 +86,9 @@ where
                     max,
                 });
             }
-            RegexToken::Set(members) => regexes.push(HIR::Set(members)),
-            RegexToken::NegatedSet(members) => regexes.push(HIR::NegatedSet(members)),
-            RegexToken::Alternation => {
+            RegexTerminal::Set(members) => regexes.push(HIR::Set(members)),
+            RegexTerminal::NegatedSet(members) => regexes.push(HIR::NegatedSet(members)),
+            RegexTerminal::Alternation => {
                 let mut left_alternative = Vec::new();
                 std::mem::swap(&mut regexes, &mut left_alternative);
                 let right_alternative = parse_regex_to(input, terminate)?;
@@ -110,11 +108,13 @@ where
                 }
                 break;
             }
-            RegexToken::LParenthesis => {
+            RegexTerminal::LParenthesis => {
                 regexes.push(parse_regex_to(input, &match_right_parenthesis)?)
             }
-            RegexToken::RParenthesis => return Err(ParsingError::UnexpectedRParenthesis.into()),
-            RegexToken::Subexpression(subexpression) => regexes.push(HIR::SubRegex(subexpression)),
+            RegexTerminal::RParenthesis => return Err(ParsingError::UnexpectedRParenthesis.into()),
+            RegexTerminal::Subexpression(subexpression) => {
+                regexes.push(HIR::SubRegex(subexpression))
+            }
         }
     }
     if regexes.len() == 1 {
