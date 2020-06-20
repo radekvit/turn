@@ -1,13 +1,13 @@
 pub mod hir;
 mod lexer;
-mod parser;
+//mod parser;
 
 pub use hir::HIR;
 use lexer::CategoryLexer;
 use lexer::Lexer;
-pub use parser::Error;
+/*pub use parser::Error;
 
-/// TODO add documentation
+/// Parse a regular expression and return its high-level intermediate representation.
 pub fn parse_regex(regex: &str) -> Result<HIR, Error> {
     parser::parse_regex(Lexer::new(regex))
 }
@@ -334,3 +334,4 @@ mod tests {
         );
     }
 }
+*/

@@ -1,16 +1,6 @@
+use crate::position::Position;
 use std::ops::Range;
 use std::str::Chars;
-
-/// A position in an input string.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
-pub struct Position {
-    /// The row of the read character
-    pub row: usize,
-    // The col of the last read character
-    pub col: usize,
-    /// The character position based on the read character's utf8 widths.
-    pub index: usize,
-}
 
 /// Input text reader. Acts as an iterator over the input characters and allows peeking.
 /// Provides built-in functionality for obtaining input slices from the read characters.
@@ -39,37 +29,6 @@ pub struct TextReader<'a> {
     peek: Option<char>,
     iter: Chars<'a>,
     position: Position,
-}
-
-impl Position {
-    /// Create a new Position representing the first character of any input.
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    /// Advance the position after reading a specific character.
-    ///
-    /// Advancing the position after a newline character
-    /// will increment the row and set the column to 1.
-    pub fn advance(&mut self, character: char) {
-        if character == '\n' {
-            self.row += 1;
-            self.col = 1;
-        } else {
-            self.col += 1;
-        }
-        self.index += character.len_utf8();
-    }
-}
-
-impl Default for Position {
-    fn default() -> Position {
-        Position {
-            row: 1,
-            col: 1,
-            index: 0,
-        }
-    }
 }
 
 impl<'a> TextReader<'a> {
@@ -181,33 +140,6 @@ impl Iterator for TextReader<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn advance_position() {
-        let mut position = Position {
-            row: 42,
-            col: 42,
-            index: 69,
-        };
-        position.advance('ß');
-        assert_eq!(
-            position,
-            Position {
-                row: 42,
-                col: 43,
-                index: 71
-            }
-        );
-        position.advance('\n');
-        assert_eq!(
-            position,
-            Position {
-                row: 43,
-                col: 1,
-                index: 72
-            }
-        );
-    }
 
     #[test]
     fn peek_characters() {
