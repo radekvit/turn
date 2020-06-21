@@ -21,6 +21,7 @@ pub fn parse_category(regex: &str) -> Result<HIR, Error> {
 mod tests {
     use super::*;
     use hir::SetMember;
+
     #[test]
     fn parse_sequence() {
         let hir = parse_regex("abcd").expect("Failed to parse");
