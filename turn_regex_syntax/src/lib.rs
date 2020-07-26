@@ -1,26 +1,27 @@
-pub mod hir;
 mod lexer;
 mod parser;
+pub mod hir {
+    pub use turn_utils::automata::hir::*;
+}
 
-pub use hir::HIR;
 use lexer::CategoryLexer;
 use lexer::Lexer;
 pub use parser::Error;
 
 /// Parse a regular expression and return its high-level intermediate representation.
-pub fn parse_regex(regex: &str) -> Result<HIR, Error> {
+pub fn parse_regex(regex: &str) -> Result<hir::HIR, Error> {
     parser::parse_regex(Lexer::new(regex))
 }
 
 /// TODO add documentation
-pub fn parse_category(regex: &str) -> Result<HIR, Error> {
+pub fn parse_category(regex: &str) -> Result<hir::HIR, Error> {
     parser::parse_category(CategoryLexer::new(regex))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hir::SetMember;
+    use hir::*;
 
     #[test]
     fn parse_sequence() {

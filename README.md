@@ -58,16 +58,16 @@ ASCII
 use turn::Lexer;
 
 #[derive(Lexer)]
-#[lexer::skip(regex, r"< >*")]
+#[lexer(skip = r"< >*")]
 enum JSONToken {
-    #[lexer::regex(string_chars, r#"[!"\\]|\\<escaped_chars>"#)]
-    #[lexer::regex(escaped_chars, r#"["\\/bfnrt]|u(<0x>){4}"#)]
-    #[regex = r#""<string_chars>*""#]
+    #[lexer(regex::string_char = "[!\"\\\\]|\\<escaped_char>")]
+    #[lexer(regex::escaped_char = "[\"\\\\/bfnrt]|u<0x>{4}")]
+    #[regex = "\"<string_char>*\""]
     String,
-    #[lexer::category(nonzero_digit, "123456789")]
-    #[lexer::regex(integer, "-?<nonzero_digit><0-9>*|0")]
-    #[lexer::regex(fraction, ".<0-9>*")]
-    #[lexer::regex(exponent, "(E|e)(\+|-)?<0-9>+")]
+    #[lexer(category::nonzero_digit = "123456789")]
+    #[lexer(regex::integer = "-?(<nonzero_digit><0-9>*|0)")]
+    #[lexer(regex::fraction = ".<0-9>*")]
+    #[lexer(regex::exponent = "(E|e)(\+|-)?<0-9>+")]
     #[regex = r"<integer><fraction>?<exponent>?"]
     Number,
     #[token = "true"]
@@ -95,5 +95,5 @@ enum JSONToken {
 - C identifier: `"[_<a-Z>][_<0-Z>]*"`
 - CamelCaseIndentifier: `"<A-Z><a-Z>*"`
 - utf-8 CamelCaseIndentifier: `"<upper><alpha>*"`
-- JSON number: `"-?(([123456789]<0-9>*)|0)(.<0-9>+)?([eE][+-]?<0-9>+)?"`
+- JSON number: `"-?([123456789]<0-9>*|0)(.<0-9>+)?([eE][+-]?<0-9>+)?"`
 - ASCII text: `"<a-Z>*"`
