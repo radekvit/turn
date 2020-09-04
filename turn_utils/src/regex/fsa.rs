@@ -1,9 +1,7 @@
-use super::hir::*;
+use super::mir::*;
 use crate::matchers::{Matcher, SingleMatcher};
 use fixedbitset::FixedBitSet;
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::fmt::Display;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct FSA<Token> {
@@ -25,23 +23,29 @@ impl<Token> FSA<Token>
 where
     Token: Clone,
 {
-    pub fn from_hir(hir: &HIR, token: Token) -> Self {
-        let mut result = FSA::from_hir_composite(hir);
+    pub fn from_mir(mir: &MIR, token: Token) -> Self {
+        let mut result = FSA::from_mir_composite(mir);
         let last = result.states.last_mut().unwrap();
         last.token = Some(token);
         result
     }
 
-    fn from_hir_composite(hir: &HIR) -> Self {
-        FSA::compile(FSA::hir_to_fsa_vec(hir), CompileMode::Concatenate)
+    fn from_mir_composite(mir: &MIR) -> Self {
+        FSA::compile(FSA::mir_to_fsa_vec(mir), CompileMode::Concatenate)
     }
 
-    fn hir_to_fsa_vec(hir: &HIR) -> Vec<Self> {
-        match hir {
-            HIR::AnyChar => vec![FSA {
-                states: vec![FSAState::with_single_transition(None, 1), FSAState::new()],
+    fn mir_to_fsa_vec(mir: &MIR) -> Vec<Self> {
+        match mir {
+            MIR::Category(c) => vec![FSA {
+                states: vec![
+                    FSAState::with_single_transition(
+                        Some(Matcher::SingleMatcher(SingleMatcher::Category(*c))),
+                        1,
+                    ),
+                    FSAState::new(),
+                ],
             }],
-            HIR::Sequence(sequence) => {
+            MIR::Sequence(sequence) => {
                 let mut transitions = sequence
                     .chars()
                     .enumerate()
@@ -57,26 +61,31 @@ where
                     states: transitions,
                 }]
             }
-            HIR::SubRegex(_) => panic!(
-                "Attempting to create an automaton from a regex with unresolved dependencies."
-            ),
-            HIR::Repetition { regex, min, max } => {
-                let mut body = FSA::hir_to_fsa_vec(regex);
+            MIR::Repetition { regex, min, max } => {
+                let mut body = FSA::mir_to_fsa_vec(regex);
                 // repeat the body until the minimum has been reached
                 let len = body.iter().fold(0, |acc, x| acc + x.states.len());
-                // repeat until min has been reached
-                if *min != 0 {
-                    let cloned = body.clone();
-                    for _ in 0..*min {
-                        body.extend(cloned.clone());
-                    }
+                let cloned = body.clone();
+                let limit = match max {
+                    Some(max) => *max,
+                    None => *min,
+                };
+                for _ in 0..limit {
+                    body.extend(cloned.clone());
                 }
+                let mut fsa = FSA::compile(body, CompileMode::Concatenate);
+                let last_state = fsa.states.len();
                 if let Some(max) = max {
-                    todo!()
+                    // add transitions to last state for all last states between min and max
+                    for i in *min..=*max {
+                        let state = (i + 1) as usize * len - 1;
+                        let mut next_states = FixedBitSet::with_capacity(last_state + 1);
+                        next_states.insert(state + 1);
+                        next_states.insert(last_state);
+                        fsa.states[state].transitions.insert(None, next_states);
+                    }
                 } else {
-                    // allow infinite looping
-                    // from the last state to the initial state of the last loop
-                    let mut fsa = FSA::compile(body, CompileMode::Concatenate);
+                    // add transition to the last state to the first state of the last loop
                     let last_loop_initial = fsa.states.len() - len;
                     let last_state = fsa.states.len();
                     fsa.states.last_mut().map(|state| {
@@ -85,36 +94,83 @@ where
                         next_states.insert(last_state);
                         state.transitions.insert(None, next_states);
                     });
-                    fsa.states.push(FSAState::new());
-                    vec![fsa]
                 }
-                // compile the intermediate fsa
-                // add a transition to the first state of the last repetition if infinite repetitions
-                // if finite repetitions, repeat and add escape to each new repetition
+                // push new last state
+                fsa.states.push(FSAState::new());
+                vec![fsa]
             }
-            HIR::Alternation(alternatives) => {
+            MIR::Alternation(alternatives) => {
                 // get each of the variants
                 // compile into a single regex, remember the indices of end states
                 // calculate the relative position of the new end state for each variant
                 // add this new epsilon transition to each variant
-                todo!()
+                let mut subexpressions: Vec<_> =
+                    alternatives.iter().map(FSA::from_mir_composite).collect();
+                let last_state = subexpressions.iter().fold(1, |acc, x| acc + x.states.len());
+                // add transitions to new last state
+                subexpressions
+                    .iter_mut()
+                    .fold(last_state, |mut last_state, x| {
+                        last_state -= x.states.len();
+                        let mut transition = FixedBitSet::with_capacity(last_state + 1);
+                        transition.insert(last_state);
+                        x.states
+                            .last_mut()
+                            .unwrap()
+                            .transitions
+                            .insert(None, transition);
+                        last_state
+                    });
+                // add transitions from new first state
+                let mut transition = FixedBitSet::with_capacity(last_state);
+                subexpressions.iter().fold(1, |acc, x| {
+                    transition.insert(acc);
+                    acc + x.states.len()
+                });
+                let first_state = FSA {
+                    states: vec![FSAState::with_single_matcher(None, transition)],
+                };
+                subexpressions.insert(0, first_state);
+                subexpressions.push(FSA {
+                    states: vec![FSAState::new()],
+                });
+                vec![FSA::compile(subexpressions, CompileMode::Separate)]
             }
-            HIR::Set(alternatives) => todo!(),
-            HIR::NegatedSet(excluded) => vec![FSA {
+            MIR::Set(alternatives) => {
+                let next = {
+                    let mut next = FixedBitSet::with_capacity(2);
+                    next.insert(1);
+                    next
+                };
+                let transitions = {
+                    let mut transitions = HashMap::new();
+                    alternatives.iter().map(Into::into).for_each(|alternative| {
+                        transitions.insert(Some(Matcher::SingleMatcher(alternative)), next.clone());
+                    });
+                    transitions
+                };
+                vec![FSA {
+                    states: vec![
+                        FSAState {
+                            transitions,
+                            token: None,
+                        },
+                        FSAState::new(),
+                    ],
+                }]
+            }
+            MIR::NegatedSet(excluded) => vec![FSA {
                 states: vec![
                     FSAState::with_single_transition(
                         Some(Matcher::NegatedSet(
-                            excluded
-                                .iter()
-                                .map(|item| item.try_into().expect("unknown category"))
-                                .collect(),
+                            excluded.iter().map(Into::into).collect(),
                         )),
                         1,
                     ),
                     FSAState::new(),
                 ],
             }],
-            HIR::Concatenation(hirs) => hirs.iter().map(FSA::hir_to_fsa_vec).flatten().collect(),
+            MIR::Concatenation(mirs) => mirs.iter().map(FSA::mir_to_fsa_vec).flatten().collect(),
         }
     }
 
@@ -232,6 +288,15 @@ impl<Token> FSAState<Token> {
         }
     }
 
+    fn with_single_matcher(matcher: Option<Matcher>, next_states: FixedBitSet) -> Self {
+        let mut transitions = HashMap::new();
+        transitions.insert(matcher, next_states);
+        Self {
+            transitions,
+            token: None,
+        }
+    }
+
     fn transition(&self, c: char) -> FixedBitSet {
         let mut result = FixedBitSet::with_capacity(0);
         for (matcher, ref next_states) in &self.transitions {
@@ -247,54 +312,64 @@ impl<Token> FSAState<Token> {
     }
 
     fn epsilon_transitions(&self) -> FixedBitSet {
-        let result;
-        if let Some(epsilon_transitions) = self.transitions.get(&None) {
-            result = epsilon_transitions.clone();
-        } else {
-            result = FixedBitSet::with_capacity(0);
-        }
-        result
+        self.transitions
+            .get(&None)
+            .map_or_else(|| FixedBitSet::with_capacity(0), Clone::clone)
     }
 }
 
-#[derive(Debug)]
-pub struct UnknownCategory;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::matchers::CharacterCategory;
 
-impl Display for UnknownCategory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unknown built-in category")
+    #[test]
+    fn from_mir_any_char() {
+        let mir = MIR::Category(CharacterCategory::Any);
+        assert_eq!(
+            FSA::from_mir(&mir, ()),
+            FSA {
+                states: vec![
+                    FSAState::with_single_transition(
+                        Some(Matcher::SingleMatcher(SingleMatcher::Category(
+                            CharacterCategory::Any
+                        ))),
+                        1
+                    ),
+                    FSAState {
+                        transitions: HashMap::new(),
+                        token: Some(())
+                    }
+                ]
+            }
+        );
     }
-}
 
-impl std::error::Error for UnknownCategory {}
-
-impl<'a> TryFrom<&SetMember<'a>> for SingleMatcher {
-    type Error = UnknownCategory;
-
-    fn try_from(value: &SetMember<'a>) -> Result<Self, Self::Error> {
-        use crate::matchers::CharacterCategory;
-
-        match value {
-            SetMember::Character(char) => Ok(SingleMatcher::Character(*char)),
-            SetMember::Category(category) => match *category {
-                "lower" => Ok(SingleMatcher::Category(CharacterCategory::Utf8Lowercase)),
-                "upper" => Ok(SingleMatcher::Category(CharacterCategory::Utf8Uppercase)),
-                "alpha" => Ok(SingleMatcher::Category(CharacterCategory::Utf8Alpha)),
-                "alnum" => Ok(SingleMatcher::Category(CharacterCategory::Utf8Alphanumeric)),
-                "digit" => Ok(SingleMatcher::Category(CharacterCategory::Utf8Numeric)),
-                "whitespace" => Ok(SingleMatcher::Category(CharacterCategory::Utf8Whitespace)),
-                "a-z" => Ok(SingleMatcher::Category(CharacterCategory::ASCIILowercase)),
-                "A-Z" => Ok(SingleMatcher::Category(CharacterCategory::ASCIIUppercase)),
-                "a-Z" => Ok(SingleMatcher::Category(CharacterCategory::ASCIIAlpha)),
-                "0-Z" => Ok(SingleMatcher::Category(
-                    CharacterCategory::ASCIIAlphanumeric,
-                )),
-                "0b" => Ok(SingleMatcher::Category(CharacterCategory::ASCIIBinaryDigit)),
-                "0-9" => Ok(SingleMatcher::Category(CharacterCategory::ASCIIDigit)),
-                "0x" => Ok(SingleMatcher::Category(CharacterCategory::ASCIIHexDigit)),
-                " " => Ok(SingleMatcher::Category(CharacterCategory::ASCIIWhitespace)),
-                _ => Err(UnknownCategory),
-            },
-        }
+    #[test]
+    fn from_mir_sequence() {
+        let mir = MIR::Sequence("abc");
+        assert_eq!(
+            FSA::from_mir(&mir, ()),
+            FSA {
+                states: vec![
+                    FSAState::with_single_transition(
+                        Some(Matcher::SingleMatcher(SingleMatcher::Character('a'))),
+                        1
+                    ),
+                    FSAState::with_single_transition(
+                        Some(Matcher::SingleMatcher(SingleMatcher::Character('b'))),
+                        2
+                    ),
+                    FSAState::with_single_transition(
+                        Some(Matcher::SingleMatcher(SingleMatcher::Character('c'))),
+                        3
+                    ),
+                    FSAState {
+                        transitions: HashMap::new(),
+                        token: Some(())
+                    }
+                ]
+            }
+        );
     }
 }

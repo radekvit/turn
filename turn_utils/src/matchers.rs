@@ -1,7 +1,5 @@
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Matcher {
-    /// Matches any character
-    Any,
     /// Matches a literal character.
     SingleMatcher(SingleMatcher),
     /// Matches any character except those from the set
@@ -51,6 +49,8 @@ pub enum CharacterCategory {
     Utf8Alphanumeric,
     /// The set of utf-8 whitespace characters
     Utf8Whitespace,
+    /// Matches any character
+    Any,
 }
 
 impl SingleMatcher {
@@ -67,7 +67,6 @@ impl Matcher {
     /// A predicate determining whether a character matches with the matcher.
     pub fn is_matching(&self, c: char) -> bool {
         match self {
-            Matcher::Any => true,
             Matcher::SingleMatcher(matcher) => matcher.is_matching(c),
             Matcher::NegatedSet(set) => set.iter().all(|x| !x.is_matching(c)),
         }
@@ -80,20 +79,21 @@ impl CharacterCategory {
         use CharacterCategory::*;
 
         match self {
-            ASCIIAlphanumeric => c.is_ascii_alphanumeric(),
+            ASCIILowercase => c.is_ascii_lowercase(),
+            ASCIIUppercase => c.is_ascii_uppercase(),
             ASCIIAlpha => c.is_ascii_alphabetic(),
             ASCIIBinaryDigit => c == '0' || c == '1',
             ASCIIDigit => c.is_digit(10),
             ASCIIHexDigit => c.is_digit(16),
-            ASCIILowercase => c.is_ascii_lowercase(),
-            ASCIIUppercase => c.is_ascii_uppercase(),
+            ASCIIAlphanumeric => c.is_ascii_alphanumeric(),
             ASCIIWhitespace => c.is_ascii_whitespace(),
-            Utf8Alphanumeric => c.is_alphanumeric(),
-            Utf8Alpha => c.is_alphabetic(),
             Utf8Lowercase => c.is_lowercase(),
-            Utf8Numeric => c.is_numeric(),
             Utf8Uppercase => c.is_uppercase(),
+            Utf8Alpha => c.is_alphabetic(),
+            Utf8Numeric => c.is_numeric(),
+            Utf8Alphanumeric => c.is_alphanumeric(),
             Utf8Whitespace => c.is_whitespace(),
+            Any => true,
         }
     }
 }

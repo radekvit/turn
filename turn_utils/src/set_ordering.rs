@@ -52,9 +52,6 @@ impl SetOrdering for Matcher {
         use crate::matchers::SingleMatcher as SM;
         use Matcher::*;
         match (self, other) {
-            (Any, Any) => Some(Ordering::Equal),
-            (Any, _) => Some(Ordering::Greater),
-            (_, Any) => Some(Ordering::Less),
             (SingleMatcher(lhs), SingleMatcher(rhs)) => lhs.set_ordering(rhs),
             (SingleMatcher(single), NegatedSet(negated_set)) => {
                 // if any subset of the category is excluded, the negated set is not comparable
@@ -585,9 +582,11 @@ mod tests {
             Utf8Numeric,
             Utf8Alphanumeric,
             Utf8Whitespace,
+            Any,
         ];
 
         let mut reversed = vec![
+            Any,
             Utf8Whitespace,
             Utf8Alphanumeric,
             Utf8Numeric,
@@ -606,24 +605,25 @@ mod tests {
         reversed.sort_unstable();
         assert_eq!(reversed, expected_ordering);
 
-        let mut shifted = vec![
+        let mut shuffled = vec![
             Utf8Whitespace,
             ASCIILowercase,
             ASCIIUppercase,
+            Utf8Alpha,
             ASCIIAlpha,
-            ASCIIBinaryDigit,
+            Utf8Alphanumeric,
             ASCIIDigit,
+            Utf8Uppercase,
             ASCIIHexDigit,
+            Any,
             ASCIIAlphanumeric,
             ASCIIWhitespace,
             Utf8Lowercase,
-            Utf8Uppercase,
-            Utf8Alpha,
+            ASCIIBinaryDigit,
             Utf8Numeric,
-            Utf8Alphanumeric,
         ];
-        shifted.sort_unstable();
-        assert_eq!(shifted, expected_ordering);
+        shuffled.sort_unstable();
+        assert_eq!(shuffled, expected_ordering);
     }
 
     #[test]
@@ -675,16 +675,6 @@ mod tests {
         use Matcher::*;
         use Ordering::*;
 
-        // comparisons with Any
-        assert_eq!(Any.set_ordering(&Any), Some(Equal));
-        assert_eq!(
-            Any.set_ordering(&SingleMatcher(SM::Character('a'))),
-            Some(Greater)
-        );
-        assert_eq!(
-            NegatedSet(vec![SM::Character('a')]).set_ordering(&Any),
-            Some(Less)
-        );
         // compare SingleMatcher with SingleMatcher
         assert_eq!(
             SingleMatcher(SM::Category(ASCIIHexDigit))

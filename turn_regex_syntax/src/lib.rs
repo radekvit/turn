@@ -1,7 +1,7 @@
 mod lexer;
 mod parser;
 pub mod hir {
-    pub use turn_utils::automata::hir::*;
+    pub use turn_utils::regex::hir::*;
 }
 
 use lexer::CategoryLexer;

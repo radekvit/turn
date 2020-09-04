@@ -1,6 +1,6 @@
 use std::fmt;
-use turn_utils::automata::hir::SetMember;
 use turn_utils::position::Position;
+use turn_utils::regex::hir::SetMember;
 use turn_utils::text_reader::TextReader;
 use turn_utils::token;
 
